@@ -1,0 +1,19 @@
+public int getRowNumber(List<DataItem> dataItems) {
+        List<DataItem> keyChildren = keyHeader.getChildren(dataItems, avgHorizontalSpace);
+        List<DataItem> output = new ArrayList<>();
+        for (DataItem keyChild : keyChildren) {
+            if (keyChild.prev(keyChildren) != null) {
+                int distance = Math.abs(keyChild.getMidpointY() - keyChild.prev(keyChildren).getMidpointY());
+                int height = Math.abs(keyChild.getBoxPoints().get(0).getY() - keyChild.getBoxPoints().get(3).getY());
+                Double avgDistance = 0.0;
+                if (Math.abs(keyChild.getMidpointY() - keyChild.prev(keyChildren).getMidpointY()) <= 1) {
+                    output.add(keyChild);
+                    if (keyChild.prev(keyChildren).prev(keyChildren) == null)
+                        avgDistance = distance + 0.0;
+                    else
+                        avgDistance = (avgDistance+distance)/2;
+                }
+            }
+        }
+        return output.size();
+    }

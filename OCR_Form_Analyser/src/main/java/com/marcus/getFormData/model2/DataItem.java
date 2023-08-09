@@ -47,8 +47,8 @@ public class DataItem {
         dataItems.sort(new ClosestToMidpointComparator(midpoint_X));
         for (DataItem item : dataItems)
             if (item != null)
-                if (item.getMidpointX() <= (midpoint_X + avgHorizontalSpace*1.5) &&
-                        (item.getMidpointX() >= (midpoint_X - avgHorizontalSpace*1.5)))
+                if (item.getMidpointX() <= (midpoint_X + avgHorizontalSpace*1.7) &&
+                        (item.getMidpointX() >= (midpoint_X - avgHorizontalSpace*1.7)))
                     output.add(item);
         Collections.sort(output, new DataItemComparator());
         dataItems.sort(new DataItemComparator());
