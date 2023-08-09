@@ -41,6 +41,7 @@ public class DataController {
         List<String> headerNames = List.of("位置", "品牌名称", "数量", "ERP生成总编号", "玻璃花纹", "产品型号");
         String key = "品牌名称";
         dataService.initData(dataItems, headerNames, key);
+        dataService.removeCache();
         return "Success";
     }
 }

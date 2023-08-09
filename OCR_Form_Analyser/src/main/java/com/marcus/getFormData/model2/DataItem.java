@@ -45,13 +45,35 @@ public class DataItem {
         Double midpoint_X = this.getMidpointX() + 0.0;
         List<DataItem> output = new ArrayList<>();
         dataItems.sort(new ClosestToMidpointComparator(midpoint_X));
-        for (DataItem item : dataItems)
-            if (item != null)
-                if (item.getMidpointX() <= (midpoint_X + avgHorizontalSpace*1.7) &&
-                        (item.getMidpointX() >= (midpoint_X - avgHorizontalSpace*1.7)))
-                    output.add(item);
+        //Arrays.sort(dataItems.toArray(new DataItem[0]), new ClosestToMidpointComparator(midpoint_X));
+            for (DataItem item : dataItems)
+                if (item != null)
+                    if (item.getMidpointX() <= (midpoint_X + avgHorizontalSpace*1.7) &&
+                            (item.getMidpointX() >= (midpoint_X - avgHorizontalSpace*1.7)))
+                        output.add(item);
         Collections.sort(output, new DataItemComparator());
+        //Arrays.sort(output.toArray(new DataItem[0]), new DataItemComparator());
         dataItems.sort(new DataItemComparator());
+        //rrays.sort(dataItems.toArray(new DataItem[0]), new DataItemComparator());
+        return output;
+    }
+
+    public List<DataItem> getChildrenEnhance(List<DataItem> dataItems) {
+        Double midpoint_X = this.getMidpointX() + 0.0;
+        List<DataItem> output = new ArrayList<>();
+        dataItems.sort(new ClosestToMidpointComparator(midpoint_X));
+        //Arrays.sort(dataItems.toArray(new DataItem[0]), new ClosestToMidpointComparator(midpoint_X));
+        for (int i=0; i<allRowY.size(); i++) {
+            DataItem item = dataItems.get(i);
+            if (item != null)
+                if (item.getMidpointX() <= (midpoint_X + avgHorizontalSpace * 1.7) &&
+                        (item.getMidpointX() >= (midpoint_X - avgHorizontalSpace * 1.7)))
+                    output.add(item);
+        }
+        Collections.sort(output, new DataItemComparator());
+        //Arrays.sort(output.toArray(new DataItem[0]), new DataItemComparator());
+        dataItems.sort(new DataItemComparator());
+        //Arrays.sort(dataItems.toArray(new DataItem[0]), new DataItemComparator());
         return output;
     }
 
@@ -60,6 +82,7 @@ public class DataItem {
         List<Integer> distances = new ArrayList<>();
         List<DataItem> output = new ArrayList<>();
         dataItems.sort(new ClosestToMidpointComparatorY(midpoint_Y));
+        //Arrays.sort(dataItems.toArray(new DataItem[0]), new ClosestToMidpointComparatorY(midpoint_Y));
         //printList(dataItems);
         for (DataItem item : dataItems)
             if (item.getMidpointY() <= (this.getMidpointY() + avgVerticalMidpointSpace) &&
@@ -81,7 +104,9 @@ public class DataItem {
                 output.add(item);
         }*/
         output.sort(new DataItemComparator());
+        //Arrays.sort(output.toArray(new DataItem[0]), new DataItemComparator());
         dataItems.sort(new DataItemComparator());
+        //Arrays.sort(dataItems.toArray(new DataItem[0]), new DataItemComparator());
         return output;
     }
 

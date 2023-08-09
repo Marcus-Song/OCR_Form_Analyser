@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import static java.lang.Integer.MAX_VALUE;
@@ -39,7 +38,6 @@ public class DataServiceImpl implements DataService {
         log.info("avgVerticalSpace: {}, avgHorizontalSpace: {}",avgVerticalSpace ,avgHorizontalSpace);
         log.info("avgVerticalMidpointSpace: {}, avgHorizontalMidpointSpace: {}",avgVerticalMidpointSpace ,avgHorizontalMidpointSpace);
         dataItems = getFormData(dataItems);
-        //System.out.println("Needed Headers:\n"+neededHeaders.toString());
         processData(dataItems);
         outResult(dataItems);
         /*//Debug
@@ -65,6 +63,23 @@ public class DataServiceImpl implements DataService {
         dataItems.sort(new DataItemComparator());
     }
 
+    @Override
+    public void removeCache() {
+        neededHeaders = new ArrayList<>();
+        allHeaders = new ArrayList<>();
+        allRowY = new ArrayList<>();
+        keyHeader = new DataItem();
+        totalVerticalSpace = 0;
+        totalHorizontalSpace = 0;
+        numVerticalSpaces = 0;
+        numHorizontalSpaces = 0;
+        minY = MAX_VALUE;
+        avgVerticalSpace = 0.0;
+        avgHorizontalSpace = 0.0;
+        avgVerticalMidpointSpace = 0;
+        avgHorizontalMidpointSpace = 0;
+    }
+
     private void printResult(List<DataItem> neededHeaders, List<DataItem> dataItems) {
         for (DataItem header : neededHeaders)
             printList(fillGap2(dataItems, header));
@@ -88,7 +103,8 @@ public class DataServiceImpl implements DataService {
             for (DataItem element1 : head.getChildren(dataItems, avgHorizontalSpace))
                 for (DataItem element2 : head.getChildren(dataItems, avgHorizontalSpace)) {
                     if (!removeList.contains(element1) && !removeList.contains(element2) && !element1.equals(element2))
-                        if (onTop(element1, element2) && inSameLine(element1, element2, dataItems)) {
+                        if (onTop(element1, element2) &&
+                                inSameLine(element1, element2, dataItems)) {
                             /*log.info("START");
                             printList(element1.getLine(dataItems, avgVerticalMidpointSpace));
                             log.info("END");*/
@@ -98,15 +114,18 @@ public class DataServiceImpl implements DataService {
                 }
         for (DataItem toDelete : removeList)
             dataItems.remove(toDelete);
-        Collections.sort(dataItems, new DataItemComparator());
+        dataItems.sort(new DataItemComparator());
     }
 
     private boolean inSameLine(DataItem element1, DataItem element2, List<DataItem> dataItems) {
         return element1.getLine(dataItems).contains(element2);
     }
 
-    public static Boolean onTop(DataItem element1, DataItem element2) {
-        return Math.abs(element1.getBoxPoints().get(3).getY() - element2.getBoxPoints().get(0).getY()) < avgVerticalSpace;
+    public static Boolean onTop(DataItem element1, DataItem element2) { //因为OCR模型识别出来的坐标点是不规则四边形，所以每个点都需要比较
+        return Math.abs(element1.getBoxPoints().get(3).getY() - element2.getBoxPoints().get(0).getY()) < avgVerticalSpace || //左下比较左上
+                Math.abs(element1.getBoxPoints().get(2).getY() - element2.getBoxPoints().get(1).getY()) < avgVerticalSpace || //右下比较右上
+                Math.abs(element1.getBoxPoints().get(3).getY() - element2.getBoxPoints().get(1).getY()) < avgVerticalSpace || //左下比较右上
+                Math.abs(element1.getBoxPoints().get(2).getY() - element2.getBoxPoints().get(0).getY()) < avgVerticalSpace; //右下比较左上
     }
 
     public static Boolean onBottom(DataItem element1, DataItem element2) {return onTop(element2, element1);}
@@ -163,7 +182,10 @@ public class DataServiceImpl implements DataService {
             total += avgSpaceEachLine;
             avgSpaceEachLine = 0;
         }
-        avgVerticalMidpointSpace = total/allHeaders.size();
+        if (allHeaders.size() == 0)
+            avgVerticalMidpointSpace=0;
+        else
+            avgVerticalMidpointSpace = total/allHeaders.size();
     }
 
     private void calculateHorizontalMidpointSpaces(DataItem item, List<DataItem> dataItems) {
@@ -295,6 +317,7 @@ public class DataServiceImpl implements DataService {
             int thisY = 0;
             int lineDataCount = 0;
             int total = 0;
+
             dataItems.sort(new ClosestToMidpointComparatorY(keyItem.getMidpointY())); //按照Y值距离当前（品名/条码）最近来排序
             for (DataItem item : dataItems) {
                 if (item.prev(dataItems) == null) //如果是第一个
@@ -311,7 +334,7 @@ public class DataServiceImpl implements DataService {
     }
 
     public List<DataItem> fillGap2(List<DataItem> dataItems, DataItem header) {
-        List<DataItem> children = header.getChildren(dataItems, avgHorizontalSpace);
+        List<DataItem> children = header.getChildrenEnhance(dataItems);
         List<DataItem> output = new ArrayList<>();
         int rowNumber = getRowNumber(dataItems);
         for (int y : allRowY) {

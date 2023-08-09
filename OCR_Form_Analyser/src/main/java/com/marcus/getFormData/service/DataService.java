@@ -9,4 +9,5 @@ public interface DataService {
     void initData(List<DataItem> dataItems, List<String> headerNames, String key);
     void outResult(List<DataItem> dataItems);
     void processData(List<DataItem> dataItems);
+    void removeCache();
 }
