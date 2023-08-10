@@ -10,4 +10,5 @@ public interface DataService {
     void outResult(List<DataItem> dataItems);
     void processData(List<DataItem> dataItems);
     void removeCache();
+    String returnData();
 }

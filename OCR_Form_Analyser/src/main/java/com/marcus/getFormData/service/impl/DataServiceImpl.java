@@ -2,7 +2,9 @@ package com.marcus.getFormData.service.impl;
 
 import com.marcus.getFormData.model2.BoxPoint;
 import com.marcus.getFormData.model2.DataItem;
+import com.marcus.getFormData.model2.RowData;
 import com.marcus.getFormData.service.DataService;
+import com.marcus.getFormData.util.ClosestToMidpointComparator;
 import com.marcus.getFormData.util.ClosestToMidpointComparatorY;
 import com.marcus.getFormData.util.DataItemComparator;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,7 @@ public class DataServiceImpl implements DataService {
     public static List<DataItem> neededHeaders = new ArrayList<>();
     public static List<DataItem> allHeaders = new ArrayList<>();
     public static List<Integer> allRowY = new ArrayList<>();
+    public List<DataItem> dataItems = new ArrayList<>();
     public static DataItem keyHeader = new DataItem();
     static int totalVerticalSpace = 0;
     static int totalHorizontalSpace = 0;
@@ -32,10 +35,12 @@ public class DataServiceImpl implements DataService {
     public static int avgVerticalMidpointSpace = 0;
     public static int avgHorizontalMidpointSpace = 0;
     @Override
-    public void initData(List<DataItem> dataItems, List<String> headerNames, String key) {
+    public void initData(List<DataItem> allDataItems, List<String> headerNames, String key) {
+        dataItems = allDataItems;
         dataItems.sort(new DataItemComparator());
+        calculateRawSpaces(dataItems);
+        trimList2(dataItems);
         findHeaders(dataItems, headerNames, key);
-        log.info("avgVerticalSpace: {}, avgHorizontalSpace: {}",avgVerticalSpace ,avgHorizontalSpace);
         log.info("avgVerticalMidpointSpace: {}, avgHorizontalMidpointSpace: {}",avgVerticalMidpointSpace ,avgHorizontalMidpointSpace);
         dataItems = getFormData(dataItems);
         processData(dataItems);
@@ -43,6 +48,16 @@ public class DataServiceImpl implements DataService {
         /*//Debug
         printList(dataItems.get(52).getLine(dataItems, avgVerticalMidpointSpace));
         printList(dataItems.get(10).getLine(dataItems, avgVerticalMidpointSpace));*/
+    }
+
+    private void calculateRawSpaces(List<DataItem> dataItems) {
+        for (DataItem item : dataItems) {
+            calculateSpaces(item);
+        }
+        //Calculate Avg
+        avgVerticalSpace = totalVerticalSpace / numVerticalSpaces * 0.5;
+        avgHorizontalSpace = totalHorizontalSpace / numHorizontalSpaces * 1.8;
+        log.info("avgVerticalSpace: {}, avgHorizontalSpace: {}",avgVerticalSpace ,avgHorizontalSpace);
     }
 
     @Override
@@ -78,6 +93,49 @@ public class DataServiceImpl implements DataService {
         avgHorizontalSpace = 0.0;
         avgVerticalMidpointSpace = 0;
         avgHorizontalMidpointSpace = 0;
+    }
+
+    public String returnData() {
+        String out = "";
+        List<RowData> rowDataList = new ArrayList<>();
+        List<List<String>> form = new ArrayList<>();
+        for (DataItem header : neededHeaders) {
+            form.add(returnDataBuilder(dataItems, header));
+        }
+        for (int i=0; i<form.get(0).size(); i++) {
+            for (int j = 0; j < neededHeaders.size(); j++) {
+                RowData rowData = RowData.builder()
+                        .header(neededHeaders.get(j).getText())
+                        .data(form.get(j).get(i))
+                        .build();
+                rowDataList.add(rowData);
+            }
+        }
+
+        out += "[\n";
+        for (int i=0; i<(rowDataList.size()/neededHeaders.size()); i++) {
+            out += "\t{\n";
+            for (int j=0; j<neededHeaders.size(); j++) {
+                if (j < neededHeaders.size()-1)
+                    out += "\t\t" + rowDataList.get((i*neededHeaders.size())+j).toString() + ",\n";
+                else
+                    out += "\t\t" + rowDataList.get((i*neededHeaders.size())+j).toString() + "\n";
+            }
+            if (i < rowDataList.size()-1)
+                out += "\t},\n";
+            else
+                out += "\t}\n";
+        }
+
+        rowDataList.clear();
+        return out += "]";
+    }
+
+    private List<String> returnDataBuilder(List<DataItem> dataItems, DataItem header) {
+        List<String> output = new ArrayList<>();
+        for (DataItem item : fillGap2(dataItems, header))
+            output.add(item.getText());
+        return output;
     }
 
     private void printResult(List<DataItem> neededHeaders, List<DataItem> dataItems) {
@@ -117,6 +175,61 @@ public class DataServiceImpl implements DataService {
         dataItems.sort(new DataItemComparator());
     }
 
+    private void trimList2(List<DataItem> dataItems) {
+        List<DataItem> removeList = new ArrayList<>();
+        for (DataItem element1 : dataItems) {
+            for (DataItem element2 : dataItems) {
+                if (!removeList.contains(element1) && !removeList.contains(element2) && !element1.equals(element2)) {
+                    //DEBUG
+                    if (element1.getText().equals("商品货号") && element2.getText().equals("（货号+颜色代码）"))
+                        System.out.println("1");
+                    if (onTop(element1, element2) && inSameRow(element1, element2, dataItems)) {
+                        element1.combine(element2);
+                        removeList.add(element2);
+                    }
+                }
+            }
+        }
+        // Marked items for removal, now remove them
+        dataItems.removeAll(removeList);
+        dataItems.sort(new DataItemComparator());
+    }
+
+
+    private boolean inSameRow(DataItem element1, DataItem element2, List<DataItem> dataItems) { //临近分类算法
+        List<DataItem> dummyList = new ArrayList<>(dataItems);
+        dummyList.sort(new ClosestToMidpointComparator(element1.getMidpointX()));
+
+        // 计算初始阈值
+        List<Integer> distances = initDistances(3, dummyList); //变量size为取多少个数据为初始值 推荐为3
+        double threshold = mean(distances) + 3;
+
+        //动态学习阈值
+        for (DataItem item : dummyList) {
+            threshold = mean(distances) + 3;
+            int distance = Math.abs(item.getMidpointX() - element1.getMidpointX());
+            if (distance <= threshold)
+                distances.add(distance);
+        }
+        return Math.abs(element1.getMidpointX() - element2.getMidpointX()) <= threshold;
+    }
+
+    private List<Integer> initDistances(int size, List<DataItem> inList) { //初始化 变量size为取多少个数据为初始值 推荐为3
+        List<Integer> outList = new ArrayList<>();
+        for (int i=1; i<=size; i++) {
+            int distance = Math.abs(inList.get(i).getMidpointX() - inList.get(i-1).getMidpointX());
+            outList.add(distance);
+        }
+        return outList;
+    }
+
+    private double mean(List<Integer> numbers) { //求平均
+        return numbers.stream()
+                .mapToInt(Integer::intValue)
+                .average()
+                .orElse(0.0);
+    }
+
     private boolean inSameLine(DataItem element1, DataItem element2, List<DataItem> dataItems) {
         return element1.getLine(dataItems).contains(element2);
     }
@@ -136,7 +249,6 @@ public class DataServiceImpl implements DataService {
         //Find NeededHeaders
         for (String headerName : headerNames)
             for (DataItem item : dataItems) {
-                calculateSpaces(item);
                 calculateHorizontalMidpointSpaces(item, dataItems);
                 if (item.getText().equals(headerName) && !neededHeaders.contains(item)) {
                     neededHeaders.add(item);
@@ -149,13 +261,9 @@ public class DataServiceImpl implements DataService {
         yAvg = yTotal / neededHeaders.size();
         log.info("Average Y value for headers: "+yAvg);
 
-        //Calculate Avg
-        avgVerticalSpace = totalVerticalSpace / numVerticalSpaces * 0.5;
-        avgHorizontalSpace = totalHorizontalSpace / numHorizontalSpaces * 1.8;
-
         //Find AllHeaders
         for (DataItem item : dataItems)
-            if (Math.abs(item.getMidpointY() - yAvg) <= avgVerticalSpace)
+            if (Math.abs(item.getMidpointY() - yAvg) <= avgVerticalSpace*2)
                 allHeaders.add(item);
         allHeaders.sort(new DataItemComparator());
 

@@ -8,6 +8,7 @@ import com.marcus.getFormData.service.DataService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,8 +25,8 @@ public class DataController {
 
     private final DataService dataService;
 
-    @PostMapping("/processData")
-    public String processInput(@RequestBody InputData inputData) {
+    @PostMapping("/processData/{strStream}")
+    public String processInput(@RequestBody InputData inputData, @PathVariable String strStream) {
         boolean bResult = inputData.isB_result();
         String errMag = inputData.getErr_mag();
         String errCode = inputData.getErr_code();
@@ -38,10 +39,12 @@ public class DataController {
             double score = dataItem.getScore();
         }
 
-        List<String> headerNames = List.of("位置", "品牌名称", "数量", "ERP生成总编号", "玻璃花纹", "产品型号");
-        String key = "品牌名称";
+        List<String> headerNames = stream(strStream.split(",")).toList();
+        //List<String> headerNames = List.of("位置", "品牌名称", "数量", "ERP生成总编号", "玻璃花纹", "产品型号");
+        String key = headerNames.get(0);
         dataService.initData(dataItems, headerNames, key);
+        String out = dataService.returnData();
         dataService.removeCache();
-        return "Success";
+        return out;
     }
 }
